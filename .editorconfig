@@ -1,0 +1,63 @@
+# EditorConfig — единые настройки редакторов для всего проекта.
+# https://editorconfig.org
+
+root = true
+
+# ─── Дефолт для всех файлов ─────────────────────────────────────────────────
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 120
+
+# ─── PHP / Laravel — PSR-12: 4 пробела ──────────────────────────────────────
+[*.{php,blade.php}]
+indent_size = 4
+
+# ─── Dart / Flutter — 2 пробела ─────────────────────────────────────────────
+[*.dart]
+indent_size = 2
+max_line_length = 100
+
+# ─── Kotlin / Java (Android native) ─────────────────────────────────────────
+[*.{kt,kts,java}]
+indent_size = 4
+
+# ─── Swift / Obj-C (iOS native) ─────────────────────────────────────────────
+[*.{swift,m,mm,h}]
+indent_size = 4
+
+# ─── Markdown — сохраняем trailing whitespace (для line breaks) ─────────────
+[*.md]
+trim_trailing_whitespace = false
+
+# ─── YAML / JSON — 2 пробела, строгий final newline ─────────────────────────
+[*.{yml,yaml,json}]
+indent_size = 2
+
+# ─── Makefile, Dockerfile — табы / спец-формат ──────────────────────────────
+[Makefile]
+indent_style = tab
+
+[Dockerfile*]
+indent_size = 4
+
+# ─── Shell-скрипты ──────────────────────────────────────────────────────────
+[*.sh]
+indent_size = 2
+end_of_line = lf
+
+# ─── Windows batch — CRLF ───────────────────────────────────────────────────
+[*.{bat,cmd,ps1}]
+end_of_line = crlf
+
+# ─── XML (Android manifests, iOS plists) ────────────────────────────────────
+[*.{xml,plist}]
+indent_size = 2
+
+# ─── ARB-файлы локализации ──────────────────────────────────────────────────
+[*.arb]
+indent_size = 2

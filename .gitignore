@@ -1,0 +1,179 @@
+# ============================================================================
+# StoryBox Clone — .gitignore (root)
+# Покрывает: Laravel backend, Flutter mobile, общие IDE/OS, секреты.
+# Подпапки (backend/.gitignore, mobile/.gitignore) могут быть точечнее.
+# ============================================================================
+
+# ─── Секреты и окружение ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+.env.backup
+*.key
+*.pem
+*.p12
+*.p8
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+firebase-adminsdk-*.json
+service-account*.json
+auth_key_*.json
+
+# ─── Laravel ────────────────────────────────────────────────────────────────
+/backend/vendor/
+/backend/node_modules/
+/backend/public/build/
+/backend/public/hot
+/backend/public/storage
+/backend/storage/*.key
+/backend/storage/app/public/
+/backend/storage/debugbar/
+/backend/storage/framework/cache/
+/backend/storage/framework/sessions/
+/backend/storage/framework/testing/
+/backend/storage/framework/views/
+/backend/storage/logs/
+/backend/storage/clockwork/
+/backend/storage/pail/
+/backend/.phpunit.cache
+/backend/.phpunit.result.cache
+/backend/Homestead.json
+/backend/Homestead.yaml
+/backend/auth.json
+/backend/.fleet
+/backend/.idea
+/backend/.vscode
+
+# ─── Flutter / Dart ─────────────────────────────────────────────────────────
+/mobile/.dart_tool/
+/mobile/.flutter-plugins
+/mobile/.flutter-plugins-dependencies
+/mobile/.packages
+/mobile/.pub-cache/
+/mobile/.pub/
+/mobile/build/
+/mobile/.fvm/
+/mobile/coverage/
+/mobile/doc/api/
+/mobile/.metadata
+/mobile/pubspec.lock.bak
+
+# Flutter generated
+/mobile/lib/**/*.g.dart
+/mobile/lib/**/*.freezed.dart
+/mobile/lib/**/*.gr.dart
+/mobile/lib/**/*.config.dart
+/mobile/lib/generated_plugin_registrant.dart
+
+# Android
+/mobile/android/.gradle/
+/mobile/android/captures/
+/mobile/android/gradlew
+/mobile/android/gradlew.bat
+/mobile/android/local.properties
+/mobile/android/**/GeneratedPluginRegistrant.java
+/mobile/android/key.properties
+/mobile/android/app/debug
+/mobile/android/app/profile
+/mobile/android/app/release
+/mobile/android/app/upload-keystore.jks
+
+# iOS
+/mobile/ios/**/dgph
+/mobile/ios/**/.symlinks/
+/mobile/ios/Flutter/.last_build_id
+/mobile/ios/Flutter/App.framework
+/mobile/ios/Flutter/Flutter.framework
+/mobile/ios/Flutter/Flutter.podspec
+/mobile/ios/Flutter/Generated.xcconfig
+/mobile/ios/Flutter/ephemeral/
+/mobile/ios/Flutter/app.flx
+/mobile/ios/Flutter/app.zip
+/mobile/ios/Flutter/flutter_assets/
+/mobile/ios/Flutter/flutter_export_environment.sh
+/mobile/ios/ServiceDefinitions.json
+/mobile/ios/Runner/GeneratedPluginRegistrant.*
+/mobile/ios/Pods/
+/mobile/ios/Podfile.lock
+/mobile/ios/.generated/
+
+# Web (Flutter Web)
+/mobile/web/flutter_service_worker.js
+
+# ─── Docker / Compose ───────────────────────────────────────────────────────
+docker-compose.override.yml
+.docker/data/
+ops/data/
+
+# ─── Node (если будут tooling-скрипты) ──────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# ─── IDE ─────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+!.vscode/settings.json.example
+!.vscode/extensions.json
+.fleet/
+*.iml
+*.ipr
+*.iws
+.project
+.settings/
+.classpath
+*.sublime-project
+*.sublime-workspace
+.history/
+.atom/
+*.swp
+*.swo
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ─── Логи и временное ───────────────────────────────────────────────────────
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+.cache/
+
+# ─── Тестовые артефакты ─────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+playwright-report/
+.flakiness/
+
+# ─── Локальные скрипты разработчика ─────────────────────────────────────────
+scripts/local/
+.claude/local/
+.scratch/
+TODO.local.md
+
+# ─── Backups, артефакты сборки ──────────────────────────────────────────────
+*.zip
+*.tar.gz
+*.rar
+*.7z
+release/
+dist/
+out/
