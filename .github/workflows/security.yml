@@ -1,0 +1,79 @@
+# ============================================================================
+# Security CI — gitleaks (секреты), composer audit, flutter pub outdated.
+# Запускается на PR + ежедневно (cron).
+# CLAUDE.md §14.1, §6 запрет №2 (никаких секретов в коммитах).
+# ============================================================================
+
+name: security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  schedule:
+    # Ежедневно в 06:00 UTC (10:00 по Душанбе).
+    - cron: '0 6 * * *'
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    name: Gitleaks (secrets scan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # gitleaks ходит по истории
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # GITLEAKS_LICENSE нужен только для приватных org repo's
+        # с pro-фичами; на публичной нашей не нужен.
+
+  composer-audit:
+    name: Composer audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: hashFiles('backend/composer.lock') != ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+
+      - name: Audit (high severity → fail)
+        working-directory: backend
+        run: composer audit --abandoned=report --no-interaction
+
+  flutter-pub-audit:
+    name: Flutter pub outdated
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: hashFiles('mobile/pubspec.lock') != ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: stable
+
+      - name: Pub outdated
+        working-directory: mobile
+        run: flutter pub outdated --no-dev-dependencies --json
+        continue-on-error: true   # отчёт, не блокер

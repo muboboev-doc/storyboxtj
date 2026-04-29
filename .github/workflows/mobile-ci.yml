@@ -1,0 +1,97 @@
+# ============================================================================
+# Mobile CI — flutter analyze + test на каждый PR / push в mobile/.
+# CLAUDE.md §14.1.
+#
+# Скипается, если mobile/ ещё не создана (Phase 0.3).
+# ============================================================================
+
+name: mobile-ci
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+
+concurrency:
+  group: mobile-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Analyze • Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check if mobile/ exists
+        id: check
+        run: |
+          if [ -f "mobile/pubspec.yaml" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "mobile/pubspec.yaml not found — skipping mobile CI"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        working-directory: .
+
+      - name: Setup Flutter
+        if: steps.check.outputs.exists == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: stable
+          cache: true
+
+      - name: Cache pub dependencies
+        if: steps.check.outputs.exists == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            mobile/.dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('mobile/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Install dependencies
+        if: steps.check.outputs.exists == 'true'
+        run: flutter pub get
+
+      - name: Generate code (build_runner)
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          if grep -q "build_runner" pubspec.yaml; then
+            flutter pub run build_runner build --delete-conflicting-outputs
+          else
+            echo "build_runner не подключён — пропускаем"
+          fi
+        continue-on-error: true
+
+      - name: Generate l10n
+        if: steps.check.outputs.exists == 'true'
+        run: flutter gen-l10n
+        continue-on-error: true
+
+      - name: Format check
+        if: steps.check.outputs.exists == 'true'
+        run: dart format --set-exit-if-changed --output=none .
+
+      - name: Static analysis
+        if: steps.check.outputs.exists == 'true'
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run tests
+        if: steps.check.outputs.exists == 'true'
+        run: flutter test --reporter=expanded
