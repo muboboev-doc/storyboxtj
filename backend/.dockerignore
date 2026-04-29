@@ -1,0 +1,45 @@
+# Не копировать в образ (особенно для prod-стадии)
+
+vendor/
+node_modules/
+.git/
+.gitignore
+.env
+.env.*
+!.env.example
+
+storage/app/public/
+storage/debugbar/
+storage/framework/cache/data/
+storage/framework/sessions/
+storage/framework/testing/
+storage/framework/views/
+storage/logs/
+storage/clockwork/
+
+.phpunit.cache
+.phpunit.result.cache
+.phpstan.cache
+
+# IDE / OS
+.idea/
+.vscode/
+.fleet/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Build artefacts
+dist/
+out/
+*.log
+*.tmp
+
+# Tests / coverage
+coverage/
+.coverage/
+
+# Docs / dev tooling — не нужны в runtime
+README.md
+docs/
+tests/

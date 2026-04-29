@@ -165,11 +165,12 @@ cat <<EOF
      docs/decisions/               — ADR
 
   🔌 Сервисы (если docker compose поднят):
-     Backend API:    http://localhost
-     Filament Admin: http://localhost/admin   (логин: admin@storybox.tj / password)
-     Mailhog:        http://localhost:8025
-     MySQL:          localhost:3306 (root / root)
-     Redis:          localhost:6379
+     Backend API:    http://localhost:8080
+     API ping:       curl http://localhost:8080/api/v1/ping
+     Filament Admin: http://localhost:8080/admin   (логин: admin@storybox.tj / password — после фазы 1+)
+     Mailhog UI:     http://localhost:8025
+     MySQL:          localhost:3306 (storybox / storybox)
+     Redis:          localhost:6380   (внутри docker-сети — redis:6379)
 
   📱 Mobile:
      cd mobile
