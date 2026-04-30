@@ -1,19 +1,19 @@
-# ============================================================================
-# Security CI — gitleaks (секреты), composer audit, flutter pub outdated.
-# Запускается на PR + ежедневно (cron).
-# CLAUDE.md §14.1, §6 запрет №2 (никаких секретов в коммитах).
-# ============================================================================
-
 name: security
 
-# См. backend-ci.yml — кавычки на "on":
-"on":
+on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
   pull_request:
+    branches:
+      - main
+      - develop
   schedule:
-    # Ежедневно в 06:00 UTC (10:00 по Душанбе).
     - cron: '0 6 * * *'
+
+permissions:
+  contents: read
 
 concurrency:
   group: security-${{ github.ref }}
@@ -21,67 +21,54 @@ concurrency:
 
 jobs:
   gitleaks:
-    name: Gitleaks (secrets scan)
+    name: Gitleaks
     runs-on: ubuntu-latest
     timeout-minutes: 5
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Устанавливаем gitleaks-binary напрямую и запускаем.
-      # gitleaks-action@v2 требует GITLEAKS_LICENSE даже для public repo
-      # в некоторых случаях — обходим, используя сам бинарь.
       - name: Install gitleaks
         run: |
-          GITLEAKS_VERSION="8.21.2"
+          GITLEAKS_VERSION=8.21.2
           curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
-            | tar -xz -C /tmp gitleaks
-          sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
-          gitleaks version
+            | sudo tar -xz -C /usr/local/bin gitleaks
 
-      - name: Run gitleaks scan
-        run: gitleaks detect --source=. --redact --verbose --no-banner --exit-code=1
+      - name: Scan
+        run: gitleaks detect --source=. --redact --no-banner --exit-code=1
 
   composer-audit:
     name: Composer audit
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: hashFiles('backend/composer.lock') != ''
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup PHP 8.2
-        uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
           tools: composer:v2
 
-      - name: Audit (high severity → fail)
+      - name: Audit
         working-directory: backend
-        run: composer audit --abandoned=report --no-interaction
+        run: composer audit --no-interaction --abandoned=report
 
   flutter-pub-audit:
     name: Flutter pub outdated
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: hashFiles('mobile/pubspec.lock') != ''
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.x'
           channel: stable
 
-      - name: Pub outdated
+      - name: Outdated
         working-directory: mobile
-        run: flutter pub outdated --no-dev-dependencies --json
-        continue-on-error: true   # отчёт, не блокер
+        run: flutter pub outdated
+        continue-on-error: true
