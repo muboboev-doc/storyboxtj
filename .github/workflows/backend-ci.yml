@@ -95,8 +95,11 @@ jobs:
       - name: Install composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Generate APP_KEY (if not set)
-        run: php artisan key:generate --ansi || true
+      - name: Prepare .env (copy from .env.example)
+        run: cp .env.example .env
+
+      - name: Generate APP_KEY
+        run: php artisan key:generate --ansi
 
       - name: Wait for MySQL
         run: |
