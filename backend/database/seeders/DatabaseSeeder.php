@@ -1,23 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Главный сидер. Запускает остальные в правильном порядке.
+     *
+     * Запуск: `php artisan db:seed` или `migrate:fresh --seed`.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            RolesAndAdminSeeder::class,
+            // В Phase 0.9 добавится TestContentSeeder (5 жанров, 20 сериалов и т.д.).
+            // В Phase 4 — BankProviderSeeder.
         ]);
     }
 }
