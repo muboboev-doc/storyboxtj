@@ -13,9 +13,11 @@ use Tests\TestCase;
 |
 */
 
+// Подключаем Laravel TestCase и для Feature, и для Unit:
+// Unit-тесты используют config()/app() через бутстрап.
 pest()->extend(TestCase::class)
- // ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
-    ->in('Feature');
+    // ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
+    ->in('Feature', 'Unit');
 
 /*
 |--------------------------------------------------------------------------
