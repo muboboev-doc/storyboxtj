@@ -7,7 +7,8 @@
 
 name: mobile-ci
 
-on:
+# См. backend-ci.yml — кавычки на "on":
+"on":
   push:
     branches: [main, develop]
     paths:

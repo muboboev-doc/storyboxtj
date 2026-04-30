@@ -6,7 +6,8 @@
 
 name: security
 
-on:
+# См. backend-ci.yml — кавычки на "on":
+"on":
   push:
     branches: [main, develop]
   pull_request:

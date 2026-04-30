@@ -5,7 +5,9 @@
 
 name: backend-ci
 
-on:
+# Кавычки на "on": — иначе YAML 1.1 парсит как boolean True
+# и GitHub Actions молча теряет trigger config (workflow стартует на 0 jobs).
+"on":
   push:
     branches: [main, develop]
     paths:
