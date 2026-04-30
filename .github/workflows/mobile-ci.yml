@@ -52,7 +52,8 @@ jobs:
         if: steps.check.outputs.exists == 'true'
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          # Pin к minor для воспроизводимости (Dart SDK ^3.11 требует Flutter 3.41+).
+          flutter-version: '3.41.x'
           channel: stable
           cache: true
 
