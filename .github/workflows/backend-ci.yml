@@ -100,6 +100,15 @@ jobs:
       - name: Prepare .env (copy from .env.example)
         run: cp .env.example .env
 
+      # storage/* и bootstrap/cache gitignored — на свежем чекауте отсутствуют.
+      # Laravel View Compiler (Filament + Livewire) падает с "Please provide a valid cache path".
+      - name: Ensure storage and cache directories exist
+        run: |
+          mkdir -p bootstrap/cache
+          mkdir -p storage/framework/{cache/data,sessions,testing,views}
+          mkdir -p storage/logs
+          mkdir -p storage/app/public
+
       - name: Install composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
