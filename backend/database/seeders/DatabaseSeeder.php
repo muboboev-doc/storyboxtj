@@ -15,10 +15,23 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Базовые сидеры (роли + super_admin) — нужны на ВСЕХ окружениях,
+        // включая production (минимально: super_admin для первого логина).
         $this->call([
             RolesAndAdminSeeder::class,
-            // В Phase 0.9 добавится TestContentSeeder (5 жанров, 20 сериалов и т.д.).
-            // В Phase 4 — BankProviderSeeder.
         ]);
+
+        // Тестовые юзеры — только на не-prod окружениях.
+        // CLAUDE.md §7 deal-breaker: не плодим тест-аккаунты на prod.
+        if (app()->environment('local', 'testing', 'staging')) {
+            $this->call([
+                TestUsersSeeder::class,
+            ]);
+
+            // Phase 0.9 placeholder. Позже подключатся:
+            //   TestContentSeeder      (Phase 2: жанры, сериалы, эпизоды)
+            //   BankProviderSeeder     (Phase 6: 3 банка в test mode)
+            //   IapProductSeeder       (Phase 5: SKU для IAP sandbox)
+        }
     }
 }

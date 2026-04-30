@@ -67,10 +67,31 @@ flutter run --target lib/main_dev.dart -d chrome
 | Сервис | URL |
 |---|---|
 | Backend API | http://localhost:8080 |
-| Filament Admin | http://localhost:8080/admin (после Phase 0.8) |
+| Filament Admin | http://localhost:8080/admin |
 | Mailhog UI | http://localhost:8025 |
 | MySQL | `localhost:3306` (storybox / storybox) |
 | Redis | `localhost:6380` (внутри сети — `redis:6379`) |
+
+### Тестовые аккаунты (после `setup-dev.sh` или `seed-test-data.sh`)
+
+Все с паролем **`password`**:
+
+| Email | Роль |
+|---|---|
+| `admin@storybox.tj` | super_admin |
+| `content@storybox.tj` | content_manager |
+| `finance@storybox.tj` | finance_manager |
+| `support@storybox.tj` | support |
+| `viewer@storybox.tj` | viewer (read-only) |
+| `noroles@storybox.tj` | — (для проверки 403) |
+
+### Сброс тестовых данных
+
+```bash
+./scripts/seed-test-data.sh           # просто прогнать сидеры (idempotent)
+./scripts/seed-test-data.sh --reset   # migrate:fresh + db:seed (DROP всех данных!)
+./scripts/seed-test-data.sh --only=TestUsers   # один сидер
+```
 
 ---
 
