@@ -1,0 +1,33 @@
+# PHPStan + Larastan конфигурация для Laravel.
+# CLAUDE.md §5.1 — целимся на level 8 для всего кода.
+#
+# TODO(after-phase-1): поднять level с 6 → 8 после того как:
+#   1. Накопится наш код (не Laravel boilerplate).
+#   2. Можно будет точечно глушить false positives в config/*.
+#
+# Запуск:
+#   composer analyse          (или: ./vendor/bin/phpstan analyse)
+
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+        - bootstrap/
+        - database/
+        - routes/
+
+    # tests/ исключён — Pest связывает $this динамически на TestCase,
+    # без pest-plugin-phpstan static analyser ругается на $this->getJson() и т.п.
+    # config/ исключён — Laravel-stub'ы стабильно генерят bool|string из env(),
+    # что на high-level PHPStan создаёт шум без полезного сигнала.
+    excludePaths:
+        - bootstrap/cache/
+        - storage/
+
+    level: 6
+
+    # Ignored errors добавляем точечно по мере появления реальных кейсов.
+    # ignoreErrors:
+    #     - '#some-known-false-positive#'

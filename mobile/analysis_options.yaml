@@ -1,0 +1,28 @@
+# Lint правила для Flutter-кодовой базы.
+# CLAUDE.md §6.1 — стиль и инструменты Flutter.
+
+include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  errors:
+    # TODO без issue link допускаем на старте (потом подкрутим).
+    todo: ignore
+    # Иногда хотим явный this. для читаемости.
+    unnecessary_this: warning
+    # public_member_api_docs мешает на скаффолдинге; включим в Phase 1+.
+    public_member_api_docs: ignore
+
+  exclude:
+    - '**/*.g.dart'
+    - '**/*.freezed.dart'
+    - '**/*.gr.dart'
+    - 'lib/generated/**'
+    - 'build/**'
+
+linter:
+  rules:
+    avoid_print: true
+    prefer_single_quotes: true
+    require_trailing_commas: true
+    sort_pub_dependencies: false       # pub add не сортирует — ок
+    lines_longer_than_80_chars: false  # 100 символов max_line_length в editorconfig
