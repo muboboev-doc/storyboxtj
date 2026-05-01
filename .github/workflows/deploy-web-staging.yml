@@ -1,0 +1,106 @@
+# ============================================================================
+# Deploy Flutter Web (staging) → GitHub Pages.
+# CLAUDE.md §17 Phase 0.10 — Demo Friday: staging deploy.
+#
+# Триггер: push в main с изменениями в mobile/, либо ручной workflow_dispatch.
+#
+# Результат: https://muboboev-doc.github.io/storyboxtj/
+# ============================================================================
+
+name: deploy-web-staging
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/deploy-web-staging.yml'
+  workflow_dispatch:
+
+# Один deploy одновременно. Новый push отменяет уже идущий.
+concurrency:
+  group: deploy-web-staging
+  cancel-in-progress: false   # не отменяем — пусть закончится для атомарности
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Build Flutter Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.x'
+          channel: stable
+          cache: true
+
+      - name: Cache pub
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            mobile/.dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('mobile/pubspec.lock') }}
+
+      - name: Install deps
+        run: flutter pub get
+
+      - name: Build Web (dev flavor → staging API)
+        run: |
+          flutter build web \
+            --target lib/main_dev.dart \
+            --release \
+            --no-tree-shake-icons \
+            --base-href "/storyboxtj/" \
+            --dart-define=API_BASE_URL=${{ vars.STAGING_API_URL || 'https://api.example.com' }} \
+            --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN_WEB || '' }} \
+            --dart-define=SENTRY_RELEASE=${{ github.sha }}
+
+      - name: Add deploy metadata
+        run: |
+          cat > build/web/_deploy_meta.json <<EOF
+          {
+            "commit": "${{ github.sha }}",
+            "ref": "${{ github.ref_name }}",
+            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "workflow_run": "${{ github.run_id }}"
+          }
+          EOF
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: mobile/build/web
+
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 5
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Print URL
+        run: |
+          echo "::notice title=Staging URL::Deployed to ${{ steps.deployment.outputs.page_url }}"
