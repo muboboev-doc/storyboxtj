@@ -44,7 +44,8 @@ Route::prefix('v1')->group(function (): void {
         ->group(function (): void {
             Route::post('request', [AuthController::class, 'requestOtp'])
                 ->name('api.v1.auth.otp.request');
-            // Phase 1.5: Route::post('verify', [AuthController::class, 'verifyOtp']);
+            Route::post('verify', [AuthController::class, 'verifyOtp'])
+                ->name('api.v1.auth.otp.verify');
         });
 
     /*
