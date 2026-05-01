@@ -114,4 +114,21 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | OTP (Phone-based)
+    |--------------------------------------------------------------------------
+    |
+    | Phase 1: phone OTP flow. Codes хранятся в Cache (Redis в проде),
+    | отправляются через App\Services\Auth\OtpSenderInterface.
+    |
+    | TTL по умолчанию 5 минут. Rate-limit: 10 запросов в минуту с одного IP
+    | (CLAUDE.md §8.2).
+    |
+    */
+    'otp' => [
+        'ttl_seconds' => env('OTP_TTL_SECONDS', 300),
+        'rate_limit_per_minute' => env('OTP_RATE_LIMIT_PER_MINUTE', 10),
+    ],
+
 ];
