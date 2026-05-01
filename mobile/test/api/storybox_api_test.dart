@@ -48,18 +48,22 @@ void main() {
     });
   });
 
-  group('User.fromJson', () {
-    test('parses all fields including nullable email_verified_at', () {
-      final json = {
+  group('User.fromJson — basic compatibility (Phase 0.5 contract)', () {
+    // Эти тесты были написаны в Phase 0.5 когда User имел упрощённую schema.
+    // В Phase 1.6 schema расширилась обязательными полями (locale, status).
+    // Тесты обновлены под новый контракт; полные тесты теперь в auth_api_test.dart.
+
+    test('parses payload with email_verified_at', () {
+      final user = User.fromJson({
         'id': 1,
         'name': 'Super Admin',
         'email': 'admin@storybox.tj',
+        'locale': 'ru',
+        'status': 'active',
         'email_verified_at': '2026-04-30T10:00:00+00:00',
         'created_at': '2026-04-29T10:00:00+00:00',
         'updated_at': '2026-04-30T10:00:00+00:00',
-      };
-
-      final user = User.fromJson(json);
+      });
 
       expect(user.id, 1);
       expect(user.name, 'Super Admin');
@@ -69,16 +73,19 @@ void main() {
     });
 
     test('handles null email_verified_at', () {
-      final json = {
-        'id': 2,
-        'name': 'Unverified',
-        'email': 'pending@storybox.tj',
-        'email_verified_at': null,
-        'created_at': '2026-04-30T10:00:00+00:00',
-        'updated_at': '2026-04-30T10:00:00+00:00',
-      };
-
-      expect(User.fromJson(json).emailVerifiedAt, isNull);
+      expect(
+        User.fromJson({
+          'id': 2,
+          'name': 'Unverified',
+          'email': 'pending@storybox.tj',
+          'locale': 'ru',
+          'status': 'active',
+          'email_verified_at': null,
+          'created_at': '2026-04-30T10:00:00+00:00',
+          'updated_at': '2026-04-30T10:00:00+00:00',
+        }).emailVerifiedAt,
+        isNull,
+      );
     });
   });
 

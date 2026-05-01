@@ -1,7 +1,7 @@
 /// Type-safe Dart client для StoryBox API.
 ///
-/// Phase 0.5 — hand-written минимальная реализация. Контракт совпадает
-/// с `docs/openapi.yaml` (одна источник правды).
+/// Phase 0.5/1.6 — hand-written минимальная реализация. Контракт совпадает
+/// с `docs/openapi.yaml` (источник правды).
 ///
 /// Когда захотим перейти на полноценный openapi-generator — запустится
 /// `./scripts/generate-api-client.sh` (требует ASCII project path, см. README).
@@ -33,19 +33,10 @@ final class PingResponse {
     );
   }
 
-  /// Всегда `'ok'`. Если endpoint вернул что-то ещё — это баг бэка.
   final String status;
-
-  /// Имя сервиса (`StoryBox`).
   final String service;
-
-  /// Backend semver (`0.0.1`).
   final String version;
-
-  /// `local` / `testing` / `staging` / `production`.
   final String environment;
-
-  /// Время сервера в момент ответа.
   final DateTime timestamp;
 
   Map<String, dynamic> toJson() => {
@@ -62,22 +53,59 @@ final class PingResponse {
       'version: $version, environment: $environment, timestamp: $timestamp)';
 }
 
-/// Ответ `GET /api/v1/me` (авторизованный пользователь).
+/// Статус юзера (зеркалит backend `App\Enums\UserStatus`).
+enum UserStatus {
+  active,
+  blocked,
+  shadowBanned,
+  deleted
+  ;
+
+  static UserStatus fromString(String value) => switch (value) {
+    'active' => UserStatus.active,
+    'blocked' => UserStatus.blocked,
+    'shadow_banned' => UserStatus.shadowBanned,
+    'deleted' => UserStatus.deleted,
+    _ =>
+      UserStatus.active, // safe default — не должно случаться при синке backend
+  };
+
+  String toJson() => switch (this) {
+    UserStatus.active => 'active',
+    UserStatus.blocked => 'blocked',
+    UserStatus.shadowBanned => 'shadow_banned',
+    UserStatus.deleted => 'deleted',
+  };
+}
+
+/// Ответ `GET /api/v1/me` + поле `user` в `AuthSuccessResponse`.
 final class User {
   const User({
     required this.id,
-    required this.name,
-    required this.email,
+    required this.status,
+    required this.locale,
     required this.createdAt,
     required this.updatedAt,
+    this.name,
+    this.email,
+    this.phone,
+    this.countryCode,
+    this.referralCode,
+    this.avatarUrl,
     this.emailVerifiedAt,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: (json['id'] as num).toInt(),
-      name: json['name'] as String,
-      email: json['email'] as String,
+      name: json['name'] as String?,
+      email: json['email'] as String?,
+      phone: json['phone'] as String?,
+      locale: json['locale'] as String,
+      countryCode: json['country_code'] as String?,
+      referralCode: json['referral_code'] as String?,
+      status: UserStatus.fromString(json['status'] as String),
+      avatarUrl: json['avatar_url'] as String?,
       emailVerifiedAt: json['email_verified_at'] != null
           ? DateTime.parse(json['email_verified_at'] as String)
           : null,
@@ -87,11 +115,95 @@ final class User {
   }
 
   final int id;
-  final String name;
-  final String email;
+  final String? name;
+  final String? email;
+  final String? phone;
+  final String locale;
+  final String? countryCode;
+  final String? referralCode;
+  final UserStatus status;
+  final String? avatarUrl;
   final DateTime? emailVerifiedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// Display-name для UI: name → phone → email → fallback.
+  String get displayName {
+    if (name != null && name!.isNotEmpty) return name!;
+    if (phone != null) return phone!;
+    if (email != null) return email!;
+    return 'User #$id';
+  }
+}
+
+/// Кошелёк коинов (поле `wallet` в `AuthSuccessResponse`, и в Phase 3+ через `/wallet`).
+final class Wallet {
+  const Wallet({
+    required this.coinsBalance,
+    required this.bonusCoinsBalance,
+    required this.totalBalance,
+  });
+
+  factory Wallet.fromJson(Map<String, dynamic> json) {
+    return Wallet(
+      coinsBalance: (json['coins_balance'] as num).toInt(),
+      bonusCoinsBalance: (json['bonus_coins_balance'] as num).toInt(),
+      totalBalance: (json['total_balance'] as num).toInt(),
+    );
+  }
+
+  /// Платные коины.
+  final int coinsBalance;
+
+  /// Бонусные (рефералы / check-in / реклама).
+  final int bonusCoinsBalance;
+
+  /// `coinsBalance + bonusCoinsBalance` (вычисляется на бэке).
+  final int totalBalance;
+}
+
+/// Ответ `POST /api/v1/auth/otp/request`.
+final class RequestOtpResponse {
+  const RequestOtpResponse({required this.sent, required this.expiresAt});
+
+  factory RequestOtpResponse.fromJson(Map<String, dynamic> json) {
+    return RequestOtpResponse(
+      sent: json['sent'] as bool,
+      expiresAt: DateTime.parse(json['expires_at'] as String),
+    );
+  }
+
+  final bool sent;
+  final DateTime expiresAt;
+}
+
+/// Ответ `POST /api/v1/auth/otp/verify`.
+final class AuthSuccessResponse {
+  const AuthSuccessResponse({
+    required this.user,
+    required this.wallet,
+    required this.token,
+    required this.tokenType,
+  });
+
+  factory AuthSuccessResponse.fromJson(Map<String, dynamic> json) {
+    return AuthSuccessResponse(
+      user: User.fromJson(json['user'] as Map<String, dynamic>),
+      wallet: Wallet.fromJson(json['wallet'] as Map<String, dynamic>),
+      token: json['token'] as String,
+      tokenType: json['token_type'] as String,
+    );
+  }
+
+  final User user;
+  final Wallet wallet;
+
+  /// Sanctum personal-access-token. Хранить в secure_storage.
+  /// Использовать как `Authorization: Bearer <token>`.
+  final String token;
+
+  /// Всегда `'Bearer'`.
+  final String tokenType;
 }
 
 /// Структурированная ошибка от API (формат `{error:{code, message}}`).
@@ -107,10 +219,14 @@ final class ApiError implements Exception {
     );
   }
 
-  /// Stable машинно-читаемый код (`UNAUTHENTICATED`, `INSUFFICIENT_COINS`, ...).
+  /// Известные коды:
+  /// - `UNAUTHENTICATED`
+  /// - `INVALID_OTP`
+  /// - `USER_BLOCKED`
+  /// - `NETWORK_ERROR` (клиентский — нет ответа от сервера)
   final String code;
 
-  /// Human-readable сообщение, локализованное по `Accept-Language`.
+  /// Human-readable, локализованное по `Accept-Language`.
   final String message;
 
   /// HTTP status code (если применимо).
@@ -128,11 +244,16 @@ final class ApiError implements Exception {
 /// ```dart
 /// final client = StoryboxApi(Dio(BaseOptions(baseUrl: 'http://localhost:8080')));
 /// final ping = await client.ping();
+/// final r = await client.requestOtp(phone: '+992901234567');
+/// final auth = await client.verifyOtp(phone: '+992901234567', code: '483721');
+/// final me = await client.getCurrentUser(); // нужен interceptor с Bearer auth.token
 /// ```
 final class StoryboxApi {
   StoryboxApi(this._dio);
 
   final Dio _dio;
+
+  // ─── System ───────────────────────────────────────────────────────────────
 
   /// `GET /api/v1/ping` — health check, без авторизации.
   Future<PingResponse> ping() async {
@@ -142,6 +263,54 @@ final class StoryboxApi {
     );
     return PingResponse.fromJson(res);
   }
+
+  // ─── Auth ─────────────────────────────────────────────────────────────────
+
+  /// `POST /api/v1/auth/otp/request` — отправить OTP на phone.
+  ///
+  /// Throws [ApiError] с кодом:
+  /// - `USER_BLOCKED` — phone привязан к заблокированному юзеру
+  /// - validation errors → 422 (ApiError.code='UNKNOWN' с deatails в message)
+  /// - Rate limit → ApiError.statusCode=429
+  Future<RequestOtpResponse> requestOtp({required String phone}) async {
+    final res = await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/v1/auth/otp/request',
+      data: {'phone': phone},
+    );
+    return RequestOtpResponse.fromJson(res);
+  }
+
+  /// `POST /api/v1/auth/otp/verify` — проверить код, получить Sanctum token.
+  ///
+  /// При успехе возвращает [AuthSuccessResponse] с user, wallet и токеном.
+  /// Сохраните `auth.token` в secure_storage и используйте для последующих
+  /// запросов.
+  ///
+  /// Throws [ApiError]:
+  /// - `INVALID_OTP` — код не найден / не совпал / истёк
+  /// - `USER_BLOCKED` — defense-in-depth (между request и verify)
+  Future<AuthSuccessResponse> verifyOtp({
+    required String phone,
+    required String code,
+    String? referralCode,
+  }) async {
+    final body = <String, dynamic>{
+      'phone': phone,
+      'code': code,
+      // ignore: use_null_aware_elements (older syntax — null-aware key not stable yet)
+      if (referralCode != null) 'referral_code': referralCode,
+    };
+
+    final res = await _request<Map<String, dynamic>>(
+      method: 'POST',
+      path: '/api/v1/auth/otp/verify',
+      data: body,
+    );
+    return AuthSuccessResponse.fromJson(res);
+  }
+
+  // ─── User ─────────────────────────────────────────────────────────────────
 
   /// `GET /api/v1/me` — текущий авторизованный пользователь.
   /// Требует Sanctum-токен в `Authorization: Bearer ...`.
@@ -154,8 +323,9 @@ final class StoryboxApi {
     return User.fromJson(res);
   }
 
-  /// Внутренний транспорт. Маппит DioException на ApiError для удобства
-  /// вызывающего кода.
+  // ─── Internal ─────────────────────────────────────────────────────────────
+
+  /// Транспорт. Маппит DioException на ApiError для удобства вызывающего.
   Future<T> _request<T>({
     required String method,
     required String path,
