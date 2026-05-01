@@ -1,0 +1,156 @@
+# ============================================================================
+# Production / staging Docker Compose.
+# CLAUDE.md §17 Phase 0.10.
+#
+# Запуск на VPS:
+#     docker compose -f docker-compose.prod.yml up -d
+#
+# Отличия от локального docker-compose.yml:
+#   • app собирается с target=prod (без dev-зависимостей)
+#   • restart: always для всех сервисов
+#   • mailhog исключён (на проде — реальный SMTP через банк/SendGrid)
+#   • mysql и redis НЕ публикуют порты на хост (только внутри docker network)
+#   • nginx сидит за публичным портом 443 с SSL (терминируется на Cloudflare
+#     либо через certbot на VPS — см. docs/deploy.md)
+#   • Volumes для backups
+#   • Healthchecks на всех сервисах
+#
+# Все sensitive значения — через .env (storybox_app reads /var/www/html/.env,
+# который монтируется с хоста или копируется при деплое).
+# ============================================================================
+
+name: storybox-prod
+
+services:
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: prod
+    image: ${DOCKER_IMAGE:-storybox-app:latest}
+    container_name: storybox_app
+    restart: always
+    working_dir: /var/www/html
+    volumes:
+      # Только storage и .env монтируются на host — остальное в образе.
+      - ./backend/storage:/var/www/html/storage
+      - ./backend/.env:/var/www/html/.env:ro
+      - ./backend/bootstrap/cache:/var/www/html/bootstrap/cache
+    environment:
+      APP_ENV: production
+      LOG_CHANNEL: stack
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: '0'
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - storybox
+    healthcheck:
+      test: ['CMD', 'php-fpm', '-t']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: storybox_nginx
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./backend:/var/www/html:ro
+      - ./ops/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      # SSL certs: монтируются с хоста (Let's Encrypt / Cloudflare Origin Cert).
+      - ./ops/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - storybox
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost/healthz']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  mysql:
+    image: mysql:8.0
+    container_name: storybox_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-storybox}
+      MYSQL_USER: ${MYSQL_USER:-storybox}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    command:
+      - --default-authentication-plugin=caching_sha2_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-connections=200
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./ops/mysql/backups:/backups
+    networks:
+      - storybox
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'mysqladmin',
+          'ping',
+          '-h',
+          'localhost',
+          '-uroot',
+          '-p${MYSQL_ROOT_PASSWORD}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: storybox_redis
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - storybox
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  horizon:
+    # Тот же образ что app, но команда — `php artisan horizon`.
+    # Подключится после Phase 5 (когда добавим Horizon-jobs).
+    image: ${DOCKER_IMAGE:-storybox-app:latest}
+    container_name: storybox_horizon
+    restart: always
+    working_dir: /var/www/html
+    command: ['php', 'artisan', 'horizon']
+    volumes:
+      - ./backend/storage:/var/www/html/storage
+      - ./backend/.env:/var/www/html/.env:ro
+      - ./backend/bootstrap/cache:/var/www/html/bootstrap/cache
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - storybox
+
+volumes:
+  mysql_data:
+    name: storybox_prod_mysql_data
+  redis_data:
+    name: storybox_prod_redis_data
+
+networks:
+  storybox:
+    name: storybox_prod_network
+    driver: bridge
