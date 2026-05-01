@@ -2,11 +2,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:storybox_app/api/storybox_api.dart';
 import 'package:storybox_app/flavors.dart';
 
 /// Smoke-screen для Phase 0.3 — проверяет связь Flutter ↔ Laravel API.
 ///
-/// При нажатии «Ping» делает GET на `/api/v1/ping` и показывает результат.
+/// При нажатии «Ping» делает GET на `/api/v1/ping` через `StoryboxApi`
+/// (type-safe клиент из Phase 0.5).
 /// Это сидит в общем UI-дереве как стартовый экран до Phase 1 (Auth slice).
 
 /// Provider Dio-клиента. В Phase 1+ переедет в `core/network/api_client.dart`
@@ -20,6 +22,11 @@ final dioProvider = Provider<Dio>((ref) {
       headers: {'Accept': 'application/json'},
     ),
   );
+});
+
+/// Provider для type-safe API клиента. Один экземпляр на приложение.
+final storyboxApiProvider = Provider<StoryboxApi>((ref) {
+  return StoryboxApi(ref.watch(dioProvider));
 });
 
 /// Состояние ping-вызова.
@@ -37,7 +44,7 @@ final class PingLoading extends PingState {
 
 final class PingSuccess extends PingState {
   const PingSuccess(this.payload);
-  final Map<String, dynamic> payload;
+  final PingResponse payload;
 }
 
 final class PingFailure extends PingState {
@@ -56,26 +63,22 @@ class PingController extends Notifier<PingState> {
   Future<void> ping() async {
     state = const PingLoading();
     try {
-      final dio = ref.read(dioProvider);
-      final res = await dio.get<Map<String, dynamic>>('/api/v1/ping');
-      state = PingSuccess(res.data ?? const {});
-    } on DioException catch (e) {
-      state = PingFailure(_describe(e));
+      final api = ref.read(storyboxApiProvider);
+      final response = await api.ping();
+      state = PingSuccess(response);
+    } on ApiError catch (e) {
+      state = PingFailure(_describeApi(e));
     } on Exception catch (e) {
       state = PingFailure(e.toString());
     }
   }
 
-  String _describe(DioException e) {
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.connectionError) {
-      return 'Не удалось подключиться к ${kAppConfig.apiBaseUrl}\n'
-          '${e.message ?? ''}';
+  String _describeApi(ApiError e) {
+    if (e.code == 'NETWORK_ERROR') {
+      return 'Не удалось подключиться к ${kAppConfig.apiBaseUrl}\n${e.message}';
     }
-    if (e.response != null) {
-      return 'HTTP ${e.response?.statusCode}: ${e.response?.data}';
-    }
-    return e.message ?? 'Unknown error';
+    return 'API ${e.code}: ${e.message}'
+        '${e.statusCode != null ? ' [HTTP ${e.statusCode}]' : ''}';
   }
 }
 
@@ -175,15 +178,20 @@ class _StateView extends StatelessWidget {
                 ],
               ),
               const Divider(),
-              ...p.entries.map(
-                (e) => Padding(
+              for (final entry in {
+                'status': p.status,
+                'service': p.service,
+                'version': p.version,
+                'environment': p.environment,
+                'timestamp': p.timestamp.toIso8601String(),
+              }.entries)
+                Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Text(
-                    '${e.key}: ${e.value}',
+                    '${entry.key}: ${entry.value}',
                     style: const TextStyle(fontFamily: 'monospace'),
                   ),
                 ),
-              ),
             ],
           ),
         ),
