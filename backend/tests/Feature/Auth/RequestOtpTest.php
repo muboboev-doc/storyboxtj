@@ -48,7 +48,7 @@ describe('POST /api/v1/auth/otp/request — happy path', function (): void {
         $sender = $this->mock(OtpSenderInterface::class, function (MockInterface $mock): void {
             $mock->shouldReceive('send')
                 ->once()
-                ->with('+992901234567', \Mockery::pattern('/^\d{6}$/'));
+                ->with('+992901234567', Mockery::pattern('/^\d{6}$/'));
         });
 
         $response = $this->postJson('/api/v1/auth/otp/request', [
@@ -97,7 +97,7 @@ describe('POST /api/v1/auth/otp/request — happy path', function (): void {
         ]);
 
         $this->mock(OtpSenderInterface::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('send')->once()->with('+992901111111', \Mockery::any());
+            $mock->shouldReceive('send')->once()->with('+992901111111', Mockery::any());
         });
 
         $this->postJson('/api/v1/auth/otp/request', ['phone' => $user->phone])->assertOk();

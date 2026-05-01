@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +33,19 @@ Route::prefix('v1')->group(function (): void {
             'timestamp' => now()->toIso8601String(),
         ]);
     })->name('api.v1.ping');
+
+    /*
+    |----------------------------------------------------------------------
+    | Auth (Phase 1) — phone OTP flow + social login
+    |----------------------------------------------------------------------
+    */
+    Route::prefix('auth/otp')
+        ->middleware('throttle:auth-otp')
+        ->group(function (): void {
+            Route::post('request', [AuthController::class, 'requestOtp'])
+                ->name('api.v1.auth.otp.request');
+            // Phase 1.5: Route::post('verify', [AuthController::class, 'verifyOtp']);
+        });
 
     /*
     |----------------------------------------------------------------------
