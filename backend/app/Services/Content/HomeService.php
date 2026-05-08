@@ -27,11 +27,17 @@ use Illuminate\Support\Facades\Cache;
 final class HomeService
 {
     public const CACHE_KEY_PREFIX = 'home:v1:';
+
     public const CACHE_TTL_SECONDS = 300;
+
     private const TRENDING_LIMIT = 20;
+
     private const NEW_LIMIT = 20;
+
     private const NEW_DAYS_WINDOW = 30;
+
     private const RECOMMENDED_LIMIT = 20;
+
     private const GENRE_SERIES_LIMIT = 20;
 
     /** @return array{continue_watching: array<int, array<string, mixed>>, trending: array<int, array<string, mixed>>, new_releases: array<int, array<string, mixed>>, recommended: array<int, array<string, mixed>>, genres: array<int, array{genre: array<string, mixed>, series: array<int, array<string, mixed>>}>} */

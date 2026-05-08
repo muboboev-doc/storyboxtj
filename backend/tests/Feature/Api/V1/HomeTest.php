@@ -29,7 +29,6 @@ declare(strict_types=1);
  *  - Cache flush при Series saved / deleted (Observer)
  */
 
-use App\Enums\SeriesStatus;
 use App\Models\Genre;
 use App\Models\Series;
 use Illuminate\Foundation\Testing\RefreshDatabase;
