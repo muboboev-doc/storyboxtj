@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\EpisodeShowController;
 use App\Http\Controllers\Api\V1\HomeController;
+use App\Http\Controllers\Api\V1\SeriesShowController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -41,6 +43,12 @@ Route::prefix('v1')->group(function (): void {
     |----------------------------------------------------------------------
     */
     Route::get('/home', HomeController::class)->name('api.v1.home');
+    Route::get('/series/{id}', SeriesShowController::class)
+        ->whereNumber('id')
+        ->name('api.v1.series.show');
+    Route::get('/episodes/{id}', EpisodeShowController::class)
+        ->whereNumber('id')
+        ->name('api.v1.episodes.show');
 
     /*
     |----------------------------------------------------------------------
