@@ -120,7 +120,7 @@ final class EpisodeResource extends Resource
                 Tables\Columns\TextColumn::make('id')->sortable(),
                 Tables\Columns\TextColumn::make('series.id')
                     ->label('Series')
-                    ->formatStateUsing(fn (Episode $record): string => '#'.$record->series_id.' — '.(string) ($record->series?->getTranslation('title', 'ru', useFallbackLocale: true) ?? ''))
+                    ->formatStateUsing(fn (Episode $record): string => '#'.$record->series_id.' — '.(string) ($record->series->getTranslation('title', 'ru', useFallbackLocale: true) ?? ''))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('number')->label('Ep #')->sortable(),
