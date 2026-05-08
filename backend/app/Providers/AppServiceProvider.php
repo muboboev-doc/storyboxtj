@@ -12,6 +12,7 @@ use App\Services\Auth\OtpSenderInterface;
 use App\Services\Auth\TelegramOtpSender;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -26,6 +27,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Phase 2.4: API Resources не оборачиваются в {"data":...}. Контракт
+        // /api/v1/* — плоский JSON. Совместимость со старыми Resource'ами
+        // (UserResource, WalletResource) сохраняется — они и так используются
+        // через `response()->json(['user' => new UserResource(...)])`.
+        JsonResource::withoutWrapping();
+
         // Phase 1.1: auto-create wallet on user creation.
         User::observe(UserObserver::class);
 
