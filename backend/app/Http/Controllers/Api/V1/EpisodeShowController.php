@@ -11,7 +11,6 @@ use App\Models\Episode;
 use App\Services\Content\EpisodeAccessPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -48,7 +47,7 @@ final class EpisodeShowController
 
         $access = $this->policy->check($request->user(), $episode);
 
-        if (!$access->granted) {
+        if (! $access->granted) {
             return response()->json([
                 'error' => [
                     'code' => $access->reasonCode,
