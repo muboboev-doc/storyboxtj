@@ -15,6 +15,9 @@ declare(strict_types=1);
  * filament-translatable плагин). Здесь — только маршрутизация и доступ.
  */
 
+use App\Filament\Admin\Resources\EpisodeResource;
+use App\Filament\Admin\Resources\GenreResource;
+use App\Filament\Admin\Resources\SeriesResource;
 use App\Models\Episode;
 use App\Models\Genre;
 use App\Models\Series;
@@ -145,14 +148,14 @@ describe('Episodes resource', function (): void {
 
 describe('Resources are registered in the panel', function (): void {
     it('Filament discovers GenreResource', function (): void {
-        expect(class_exists(\App\Filament\Admin\Resources\GenreResource::class))->toBeTrue();
+        expect(class_exists(GenreResource::class))->toBeTrue();
     });
 
     it('Filament discovers SeriesResource', function (): void {
-        expect(class_exists(\App\Filament\Admin\Resources\SeriesResource::class))->toBeTrue();
+        expect(class_exists(SeriesResource::class))->toBeTrue();
     });
 
     it('Filament discovers EpisodeResource', function (): void {
-        expect(class_exists(\App\Filament\Admin\Resources\EpisodeResource::class))->toBeTrue();
+        expect(class_exists(EpisodeResource::class))->toBeTrue();
     });
 });
