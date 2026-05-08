@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\HomeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,13 @@ Route::prefix('v1')->group(function (): void {
             'timestamp' => now()->toIso8601String(),
         ]);
     })->name('api.v1.ping');
+
+    /*
+    |----------------------------------------------------------------------
+    | Content (Phase 2) — главный экран, лента, плеер
+    |----------------------------------------------------------------------
+    */
+    Route::get('/home', HomeController::class)->name('api.v1.home');
 
     /*
     |----------------------------------------------------------------------
