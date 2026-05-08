@@ -48,7 +48,7 @@ final class EpisodeShowController
 
         $access = $this->policy->check($request->user(), $episode);
 
-        if (! $access->granted) {
+        if (!$access->granted) {
             return response()->json([
                 'error' => [
                     'code' => $access->reasonCode,
