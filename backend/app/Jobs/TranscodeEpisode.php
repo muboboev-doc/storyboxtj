@@ -99,7 +99,7 @@ final class TranscodeEpisode implements ShouldQueue
                         $quality->value,
                     ),
                     'drm_protected' => false,
-                    'file_size_bytes' => self::FILE_SIZE_BY_QUALITY[$quality->value] ?? 0,
+                    'file_size_bytes' => self::FILE_SIZE_BY_QUALITY[$quality->value],
                 ]);
             }
 
