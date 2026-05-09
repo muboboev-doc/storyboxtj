@@ -10,6 +10,9 @@
 library;
 
 import 'package:dio/dio.dart';
+import 'package:storybox_app/api/content_models.dart';
+
+export 'package:storybox_app/api/content_models.dart';
 
 // ─── DTO ────────────────────────────────────────────────────────────────────
 
@@ -206,9 +209,14 @@ final class AuthSuccessResponse {
   final String tokenType;
 }
 
-/// Структурированная ошибка от API (формат `{error:{code, message}}`).
+/// Структурированная ошибка от API (формат `{error:{code, message, context}}`).
 final class ApiError implements Exception {
-  const ApiError({required this.code, required this.message, this.statusCode});
+  const ApiError({
+    required this.code,
+    required this.message,
+    this.statusCode,
+    this.context,
+  });
 
   factory ApiError.fromJson(Map<String, dynamic> json, [int? statusCode]) {
     final err = json['error'] as Map<String, dynamic>?;
@@ -216,6 +224,7 @@ final class ApiError implements Exception {
       code: err?['code'] as String? ?? 'UNKNOWN',
       message: err?['message'] as String? ?? 'Unknown error',
       statusCode: statusCode,
+      context: err?['context'] as Map<String, dynamic>?,
     );
   }
 
@@ -223,6 +232,7 @@ final class ApiError implements Exception {
   /// - `UNAUTHENTICATED`
   /// - `INVALID_OTP`
   /// - `USER_BLOCKED`
+  /// - `EPISODE_LOCKED` (Phase 2.5) — `context.unlock_cost_coins`, `context.is_premium`
   /// - `NETWORK_ERROR` (клиентский — нет ответа от сервера)
   final String code;
 
@@ -231,6 +241,10 @@ final class ApiError implements Exception {
 
   /// HTTP status code (если применимо).
   final int? statusCode;
+
+  /// Машинно-читаемые детали (Phase 2.5+). Например, для `EPISODE_LOCKED`:
+  /// `{'unlock_cost_coins': 30, 'is_premium': false}`.
+  final Map<String, dynamic>? context;
 
   @override
   String toString() =>
@@ -323,6 +337,47 @@ final class StoryboxApi {
     return User.fromJson(res);
   }
 
+  // ─── Content (Phase 2) ────────────────────────────────────────────────────
+
+  /// `GET /api/v1/home` — 5-секционная главная.
+  ///
+  /// Public endpoint. Кэшируется 5 минут на бэке. `locale` опционален —
+  /// если null, бэк определяет по `Accept-Language`. Pass для явного
+  /// language switch (Phase 8 — language picker).
+  Future<HomePayload> getHome({String? locale}) async {
+    final res = await _request<Map<String, dynamic>>(
+      method: 'GET',
+      path: '/api/v1/home',
+      headers: locale != null ? {'Accept-Language': locale} : null,
+    );
+    return HomePayload.fromJson(res);
+  }
+
+  /// `GET /api/v1/series/{id}` — карточка сериала.
+  ///
+  /// Throws [ApiError] (statusCode=404) если сериал не существует или не published.
+  Future<SeriesShow> getSeriesShow(int id) async {
+    final res = await _request<Map<String, dynamic>>(
+      method: 'GET',
+      path: '/api/v1/series/$id',
+    );
+    return SeriesShow.fromJson(res);
+  }
+
+  /// `GET /api/v1/episodes/{id}` — playable эпизод со streams.
+  ///
+  /// Throws [ApiError]:
+  /// - `EPISODE_LOCKED` (statusCode=403) — paid эпизод без unlock.
+  ///   Дополнительно в `error.context` будут `unlock_cost_coins` и `is_premium`.
+  /// - statusCode=404 — эпизод не существует или не ready.
+  Future<EpisodeShow> getEpisodeShow(int id) async {
+    final res = await _request<Map<String, dynamic>>(
+      method: 'GET',
+      path: '/api/v1/episodes/$id',
+    );
+    return EpisodeShow.fromJson(res);
+  }
+
   // ─── Internal ─────────────────────────────────────────────────────────────
 
   /// Транспорт. Маппит DioException на ApiError для удобства вызывающего.
@@ -331,13 +386,14 @@ final class StoryboxApi {
     required String path,
     Object? data,
     Map<String, dynamic>? queryParameters,
+    Map<String, String>? headers,
   }) async {
     try {
       final response = await _dio.request<T>(
         path,
         options: Options(
           method: method,
-          headers: {'Accept': 'application/json'},
+          headers: {'Accept': 'application/json', ...?headers},
         ),
         data: data,
         queryParameters: queryParameters,

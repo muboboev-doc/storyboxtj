@@ -5,8 +5,9 @@ info:
   description: |
     Mobile / Web client API for StoryBox short-vertical drama platform.
 
-    Phase 1 baseline: ping (system) + phone-OTP auth. Endpoints добавляются
-    per vertical slice (Content → Wallet → IAP → Banks).
+    Phase 1 baseline: ping (system) + phone-OTP auth.
+    Phase 2: content endpoints — /home, /series/{id}, /episodes/{id}.
+    Endpoints добавляются per vertical slice (Content → Wallet → IAP → Banks).
 
     This spec is the **source of truth** for the generated Flutter client.
     После правок запусти `./scripts/generate-api-client.sh` чтобы обновить
@@ -14,7 +15,7 @@ info:
     `mobile/lib/api/storybox_api.dart`.
 
     Authentication: **Sanctum bearer token** в `Authorization: Bearer <token>`.
-  version: 0.0.2
+  version: 0.0.3
   contact:
     name: StoryBox
     url: https://github.com/muboboev-doc/storyboxtj
@@ -32,6 +33,8 @@ tags:
     description: Phone OTP authentication (Phase 1)
   - name: User
     description: Authenticated user info
+  - name: Content
+    description: Series / episodes / home feed (Phase 2)
 
 paths:
   /api/v1/ping:
@@ -154,6 +157,101 @@ paths:
                 $ref: '#/components/schemas/User'
         '401':
           description: Token missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/home:
+    get:
+      tags: [Content]
+      summary: Home screen payload (5 секций)
+      description: |
+        Главная лента: continue_watching + trending + new_releases + recommended + genres.
+
+        - **Public:** auth опциональна, guest и user видят одно и то же на Phase 2.
+        - **Кэш:** 5 минут, ключ `home:v1:{locale}`. Инвалидируется при изменении Series.
+        - **Translatable поля** (`title`, `synopsis`, `name`) выдаются в выбранной локали.
+          Локаль определяется по `Accept-Language` (whitelist: ru/en/tg/uz/kk/ky), default: ru.
+        - **continue_watching:** Phase 2 — всегда `[]`. Заполнится из `user_watch_history` в Phase 5.
+        - **recommended:** Phase 2 — placeholder = top published. Phase 5+ — content-based recommender.
+      operationId: getHome
+      security: []
+      responses:
+        '200':
+          description: Home payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomePayload'
+
+  /api/v1/series/{id}:
+    get:
+      tags: [Content]
+      summary: Подробности сериала (с эпизодами и жанрами)
+      description: |
+        Возвращает только **published** сериалы. Эпизоды фильтруются по `status=ready`
+        и сортируются по `number ASC`.
+
+        **404** если сериал не существует или не published.
+      operationId: getSeriesShow
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Series details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesShow'
+        '404':
+          description: Series not found or not published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/episodes/{id}:
+    get:
+      tags: [Content]
+      summary: Подробности эпизода (со streams для плеера)
+      description: |
+        - **Free episode** (`is_free=true`) → 200 со streams для всех (auth не нужен).
+        - **Paid episode** (`is_free=false`) → 403 `EPISODE_LOCKED` с `unlock_cost_coins` в context.
+          Phase 3 добавит `EpisodeUnlockService` (VIP / coins-spend / ad-unlock).
+        - **404** если эпизод не существует, status != ready, или сериал не published.
+
+        Streams response **никогда не включается** в 403 (anti-leak).
+      operationId: getEpisodeShow
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Playable episode with streams
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpisodeShow'
+        '403':
+          description: EPISODE_LOCKED — paid episode без unlock'а
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Not found or not playable
           content:
             application/json:
               schema:
@@ -332,8 +430,242 @@ components:
                 - UNAUTHENTICATED
                 - INVALID_OTP
                 - USER_BLOCKED
-              example: INVALID_OTP
+                - EPISODE_LOCKED   # Phase 2.5
+                - SERIES_NOT_FOUND # Phase 2.4 (синоним 404 на /series/{id})
+              example: EPISODE_LOCKED
             message:
               type: string
               description: Human-readable, локализованное по Accept-Language
-              example: OTP is invalid or expired.
+              example: This episode is locked. Unlock it for 30 coins.
+            context:
+              type: object
+              additionalProperties: true
+              description: |
+                Машинно-читаемые детали ошибки. Например, для EPISODE_LOCKED:
+                `{"unlock_cost_coins": 30, "is_premium": false}`.
+
+    # ─── Content (Phase 2) ──────────────────────────────────────────────────────
+
+    Genre:
+      type: object
+      required: [id, slug, name]
+      properties:
+        id:
+          type: integer
+          format: int64
+        slug:
+          type: string
+          example: drama
+        name:
+          type: string
+          description: Локализованное имя в текущей локали (translation fallback → ru).
+          example: Драма
+
+    StreamQuality:
+      type: string
+      enum: [240p, 480p, 720p, 1080p]
+      description: HLS quality variant. Phase 2 — все 4 generated TranscodeEpisode'ом.
+
+    EpisodeStream:
+      type: object
+      required: [quality, manifest_url, drm_protected]
+      properties:
+        quality:
+          $ref: '#/components/schemas/StreamQuality'
+        manifest_url:
+          type: string
+          format: uri
+          description: |
+            HLS master.m3u8 URL. Phase 2 — stub (`stub-cdn.storybox.tj/...`).
+            Phase 4 — реальный signed URL Bunny Stream (TTL 30 мин).
+        drm_protected:
+          type: boolean
+          description: Phase 8 — Widevine L1/L3 для android, FairPlay для iOS.
+
+    SeriesSummary:
+      type: object
+      description: |
+        Уменьшенная карточка сериала для feed-ов и cross-references (например,
+        `series` в episode-show). Без эпизодов и жанров.
+      required:
+        - id
+        - title
+        - synopsis
+        - poster_url
+        - banner_url
+        - free_episodes_count
+        - total_episodes
+        - is_premium
+        - published_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+          description: Локализованное название.
+        synopsis:
+          type: string
+          nullable: true
+          description: Локализованное описание.
+        poster_url:
+          type: string
+          format: uri
+          nullable: true
+        banner_url:
+          type: string
+          format: uri
+          nullable: true
+        free_episodes_count:
+          type: integer
+          minimum: 0
+          description: Сколько первых эпизодов бесплатны.
+        total_episodes:
+          type: integer
+          minimum: 0
+          description: Денормализованный счётчик ready-эпизодов.
+        is_premium:
+          type: boolean
+          description: VIP-only сериал (Phase 7 — subscription).
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    Episode:
+      type: object
+      description: |
+        Эпизод как часть series-show. Без streams (они только в episode-show).
+      required:
+        - id
+        - number
+        - title
+        - duration_sec
+        - is_free
+        - unlock_cost_coins
+      properties:
+        id:
+          type: integer
+          format: int64
+        number:
+          type: integer
+          minimum: 1
+          description: Номер эпизода в сериале (1-based).
+        title:
+          type: string
+          nullable: true
+          description: |
+            Локализованный заголовок (часто пустой — подписи у эпизодов
+            не обязательны).
+        synopsis:
+          type: string
+          nullable: true
+        duration_sec:
+          type: integer
+          minimum: 0
+          description: Длительность в секундах.
+        is_free:
+          type: boolean
+        unlock_cost_coins:
+          type: integer
+          minimum: 0
+          description: Стоимость в коинах. Используется при HTTP 403 EPISODE_LOCKED.
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    SeriesShow:
+      type: object
+      description: |
+        Полный ответ `GET /api/v1/series/{id}` — карточка + эпизоды (только ready)
+        + жанры. Расширяет SeriesSummary.
+      allOf:
+        - $ref: '#/components/schemas/SeriesSummary'
+        - type: object
+          required: [genres, episodes]
+          properties:
+            genres:
+              type: array
+              items:
+                $ref: '#/components/schemas/Genre'
+            episodes:
+              type: array
+              description: Только ready-эпизоды, отсортированы по number ASC.
+              items:
+                $ref: '#/components/schemas/Episode'
+
+    EpisodeShow:
+      type: object
+      description: |
+        Полный ответ `GET /api/v1/episodes/{id}` (только если access granted).
+        Расширяет Episode полями: `series` (summary) + `streams[]`.
+      allOf:
+        - $ref: '#/components/schemas/Episode'
+        - type: object
+          required: [series, streams]
+          properties:
+            series:
+              $ref: '#/components/schemas/SeriesShortRef'
+            streams:
+              type: array
+              items:
+                $ref: '#/components/schemas/EpisodeStream'
+
+    SeriesShortRef:
+      type: object
+      description: Минимальная ссылка на сериал внутри episode-show.
+      required: [id, title, poster_url]
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        poster_url:
+          type: string
+          format: uri
+          nullable: true
+
+    HomeGenreSection:
+      type: object
+      required: [genre, series]
+      properties:
+        genre:
+          $ref: '#/components/schemas/Genre'
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeriesSummary'
+
+    HomePayload:
+      type: object
+      description: |
+        5-секционная главная. `continue_watching` всегда `[]` на Phase 2.
+      required:
+        - continue_watching
+        - trending
+        - new_releases
+        - recommended
+        - genres
+      properties:
+        continue_watching:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeriesSummary'
+        trending:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeriesSummary'
+        new_releases:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeriesSummary'
+        recommended:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeriesSummary'
+        genres:
+          type: array
+          items:
+            $ref: '#/components/schemas/HomeGenreSection'
