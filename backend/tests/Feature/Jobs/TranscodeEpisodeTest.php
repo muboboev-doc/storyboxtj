@@ -27,9 +27,9 @@ use App\Jobs\TranscodeEpisode;
 use App\Models\Episode;
 use App\Models\EpisodeStream;
 use App\Models\Series;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
@@ -156,16 +156,14 @@ describe('TranscodeEpisode job — dispatch via Observer', function (): void {
 });
 
 describe('TranscodeEpisode job — implementation type', function (): void {
-    it('is a queueable Laravel job', function (): void {
+    it('implements ShouldQueue (deferred execution)', function (): void {
         $episode = Episode::factory()->create([
             'status' => EpisodeStatus::Uploaded,
             'original_url' => 'https://temp.example.com/raw.mp4',
         ]);
 
-        Queue::fake();
+        $job = new TranscodeEpisode($episode->id);
 
-        TranscodeEpisode::dispatch($episode->id);
-
-        Queue::assertPushed(TranscodeEpisode::class);
+        expect($job)->toBeInstanceOf(ShouldQueue::class);
     });
 });
