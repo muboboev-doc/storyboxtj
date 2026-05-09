@@ -1,5 +1,7 @@
 <?php
 
+use App\Jobs\TranscodeEpisode;
+use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
 
 /*
@@ -18,6 +20,18 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)
     // ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
     ->in('Feature', 'Unit');
+
+/*
+ * Phase 2.7: глобально фейкуем TranscodeEpisode job, чтобы создание Episode
+ * через factory не дёргало синхронный транскод-стаб (queue=sync в тестах).
+ *
+ * Тесты, которые проверяют сам job, вызывают (new TranscodeEpisode($id))->handle()
+ * напрямую — это обходит Bus и работает как ожидается. Тесты, которые проверяют
+ * dispatch через Observer, используют Bus::assertDispatched().
+ */
+uses()->beforeEach(function (): void {
+    Bus::fake([TranscodeEpisode::class]);
+})->in('Feature', 'Unit');
 
 /*
 |--------------------------------------------------------------------------

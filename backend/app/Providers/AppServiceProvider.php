@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\Episode;
 use App\Models\Series;
 use App\Models\User;
+use App\Observers\EpisodeObserver;
 use App\Observers\SeriesObserver;
 use App\Observers\UserObserver;
 use App\Services\Auth\OtpSenderInterface;
@@ -38,6 +40,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Phase 2.3: invalidate home cache при изменении Series.
         Series::observe(SeriesObserver::class);
+
+        // Phase 2.7: dispatch TranscodeEpisode при загрузке оригинала.
+        Episode::observe(EpisodeObserver::class);
 
         // Phase 1.3: rate-limit для /api/v1/auth/otp/* (CLAUDE.md §8.2 — 10 rpm на IP).
         RateLimiter::for('auth-otp', function (Request $request): Limit {

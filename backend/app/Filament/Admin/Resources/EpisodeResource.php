@@ -100,15 +100,18 @@ final class EpisodeResource extends Resource
                             ->all())
                         ->default(EpisodeStatus::Uploaded->value)
                         ->required()
-                        ->helperText('Только Ready попадает в /api/v1/series/{id} и /api/v1/episodes/{id}.'),
-                    Forms\Components\TextInput::make('original_url')
-                        ->label('Original video URL')
-                        ->url()
-                        ->maxLength(2048)
-                        ->helperText('Phase 2.7: FileUpload → S3 → ставится автоматически.'),
+                        ->helperText('При сохранении со status=Uploaded и непустым original_url — автоматически диспатчится TranscodeEpisode job → Ready.'),
+                    Forms\Components\FileUpload::make('original_url')
+                        ->label('Original video file')
+                        ->disk('local')
+                        ->directory('episode-uploads')
+                        ->visibility('private')
+                        ->acceptedFileTypes(['video/mp4', 'video/quicktime', 'video/x-matroska'])
+                        ->maxSize(500 * 1024)
+                        ->helperText('MP4 / MOV / MKV. Phase 4 заменим на S3 multipart upload + Bunny Stream.'),
                     Forms\Components\DateTimePicker::make('published_at')
                         ->seconds(false)
-                        ->helperText('Опционально. Используется для расписания.'),
+                        ->helperText('Опционально. Заполняется автоматически после успешного транскода.'),
                 ])->columns(2),
         ]);
     }
