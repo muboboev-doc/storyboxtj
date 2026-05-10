@@ -11,6 +11,7 @@ import 'package:storybox_app/presentation/auth/auth_state.dart';
 import 'package:storybox_app/presentation/auth/otp_input_screen.dart';
 import 'package:storybox_app/presentation/auth/phone_otp_screen.dart';
 import 'package:storybox_app/presentation/home/home_screen.dart';
+import 'package:storybox_app/presentation/series/series_detail_screen.dart';
 
 class StoryBoxApp extends ConsumerWidget {
   const StoryBoxApp({super.key});
@@ -57,7 +58,9 @@ final _routerProvider = Provider<GoRouter>((ref) {
         AuthFailed(previous: OtpSent()) => loc == '/otp' ? null : '/otp',
         AuthFailed() => loc == '/login' ? null : '/login',
         Authenticated() =>
-          (loc.startsWith('/home') || loc.startsWith('/series'))
+          (loc.startsWith('/home') ||
+                  loc.startsWith('/series') ||
+                  loc.startsWith('/episodes'))
               ? null
               : '/home',
       };
@@ -67,13 +70,22 @@ final _routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (_, _) => const PhoneOtpScreen()),
       GoRoute(path: '/otp', builder: (_, _) => const OtpInputScreen()),
       GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
-      // Phase 2.10 заменит на полноценный SeriesDetailScreen.
       GoRoute(
         path: '/series/:id',
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? -1;
+          return SeriesDetailScreen(id: id);
+        },
+      ),
+      // Phase 2.11 заменит на VerticalPlayerScreen.
+      GoRoute(
+        path: '/episodes/:id',
         builder: (context, state) => Scaffold(
-          appBar: AppBar(title: const Text('Series')),
+          appBar: AppBar(title: const Text('Episode')),
           body: Center(
-            child: Text('Series #${state.pathParameters['id']} (Phase 2.10)'),
+            child: Text(
+              'Episode #${state.pathParameters['id']} (Phase 2.11 — player)',
+            ),
           ),
         ),
       ),
