@@ -10,7 +10,7 @@ import 'package:storybox_app/presentation/auth/auth_provider.dart';
 import 'package:storybox_app/presentation/auth/auth_state.dart';
 import 'package:storybox_app/presentation/auth/otp_input_screen.dart';
 import 'package:storybox_app/presentation/auth/phone_otp_screen.dart';
-import 'package:storybox_app/presentation/home/home_placeholder_screen.dart';
+import 'package:storybox_app/presentation/home/home_screen.dart';
 
 class StoryBoxApp extends ConsumerWidget {
   const StoryBoxApp({super.key});
@@ -56,14 +56,27 @@ final _routerProvider = Provider<GoRouter>((ref) {
         VerifyingOtp() => loc == '/otp' ? null : '/otp',
         AuthFailed(previous: OtpSent()) => loc == '/otp' ? null : '/otp',
         AuthFailed() => loc == '/login' ? null : '/login',
-        Authenticated() => loc.startsWith('/home') ? null : '/home',
+        Authenticated() =>
+          (loc.startsWith('/home') || loc.startsWith('/series'))
+              ? null
+              : '/home',
       };
     },
     routes: [
       GoRoute(path: '/splash', builder: (_, _) => const _SplashScreen()),
       GoRoute(path: '/login', builder: (_, _) => const PhoneOtpScreen()),
       GoRoute(path: '/otp', builder: (_, _) => const OtpInputScreen()),
-      GoRoute(path: '/home', builder: (_, _) => const HomePlaceholderScreen()),
+      GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
+      // Phase 2.10 заменит на полноценный SeriesDetailScreen.
+      GoRoute(
+        path: '/series/:id',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(title: const Text('Series')),
+          body: Center(
+            child: Text('Series #${state.pathParameters['id']} (Phase 2.10)'),
+          ),
+        ),
+      ),
     ],
   );
 });
