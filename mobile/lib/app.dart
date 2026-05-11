@@ -11,6 +11,7 @@ import 'package:storybox_app/presentation/auth/auth_state.dart';
 import 'package:storybox_app/presentation/auth/otp_input_screen.dart';
 import 'package:storybox_app/presentation/auth/phone_otp_screen.dart';
 import 'package:storybox_app/presentation/home/home_screen.dart';
+import 'package:storybox_app/presentation/player/vertical_player_screen.dart';
 import 'package:storybox_app/presentation/series/series_detail_screen.dart';
 
 class StoryBoxApp extends ConsumerWidget {
@@ -77,17 +78,12 @@ final _routerProvider = Provider<GoRouter>((ref) {
           return SeriesDetailScreen(id: id);
         },
       ),
-      // Phase 2.11 заменит на VerticalPlayerScreen.
       GoRoute(
         path: '/episodes/:id',
-        builder: (context, state) => Scaffold(
-          appBar: AppBar(title: const Text('Episode')),
-          body: Center(
-            child: Text(
-              'Episode #${state.pathParameters['id']} (Phase 2.11 — player)',
-            ),
-          ),
-        ),
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? -1;
+          return VerticalPlayerScreen(id: id);
+        },
       ),
     ],
   );
